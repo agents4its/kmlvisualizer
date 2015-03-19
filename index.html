@@ -9,8 +9,6 @@
     <title>KML Visualizer</title>
     <script type="text/javascript" src="Apps/Sandcastle/Sandcastle-header.js"></script>
     <script type="text/javascript" src="ThirdParty/requirejs-2.1.9/require.js"></script>
-	<script type="text/javascript" src="jssaxparser/sax.js"></script>
-	<script type="text/javascript" src="jssaxparser/DefaultHandlers.js"></script>
     <script type="text/javascript">
     require.config({
         baseUrl : 'Source',
@@ -161,15 +159,13 @@ function startup(Cesium) {
 			pausedFast++;
 		} else {
 			pausedFast = 0;
+			fastLock = false;
 		}
-		fastLock = false;
-		
 		
 		var backward = false;
 		if (Cesium.JulianDate.compare(prevTimeFast, viewer.clock.currentTime) > 0) {
 			backward = true;
 		}
-		
 		prevTimeFast = viewer.clock.currentTime;
 		
 		//get the area of camera view
@@ -187,8 +183,8 @@ function startup(Cesium) {
 			positionTime = new Cesium.JulianDate();
 			Cesium.JulianDate.clone(viewer.clock.currentTime,positionTime);
 		}
-		
-		for (var i = 0; i < fastCount; i++) {
+		var counter = fastCount;
+		for (var i = 0; i < counter; i++) {
 			//get id of billboard in camera view from array
 			var id = fastColl.shift();
 			var coll = viewer.scene.primitives.get(fastIndex[id]);
@@ -205,6 +201,9 @@ function startup(Cesium) {
 						continue;
 					}
 				} else {
+					if(!Cesium.defined(startMoveBack[item.id])){
+						console.log(viewer.dataSources.get(0).descriptions[item.id]);
+					 }
 					if (Cesium.defined(item.translucencyByDistance) && Cesium.JulianDate.compare(startMoveBack[item.id],prevTimeFast) < 0) {
 						fastColl.push(id);
 						continue;
@@ -227,8 +226,10 @@ function startup(Cesium) {
 					fastColl.push(id);
 					continue;
 				}
+				if (pausedFast == 0) {
 					item.position = position;
 					item.translucencyByDistance = undefined;
+				}
 				fastColl.push(id);
 				continue;
 			}
@@ -252,9 +253,10 @@ function startup(Cesium) {
 			paused = 0;
 		}
 		
-		if (paused > collectionCount) {
+		if (paused > (2*collectionCount)-1) {
 			return;
 		}
+
 		var rd = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(viewer.canvas.clientWidth,viewer.canvas.clientHeight));
 		var ld = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0,viewer.canvas.clientHeight));
 		var lt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0,0));
@@ -271,7 +273,7 @@ function startup(Cesium) {
 			actualCollection=0;
 		}
 		
-		if (paused > 0){
+		if (paused > collectionCount-1){
 			positionTime = new Cesium.JulianDate();
 			Cesium.JulianDate.clone(viewer.clock.currentTime,positionTime);
 			Cesium.JulianDate.addSeconds(positionTime,1, positionTime);
@@ -305,7 +307,7 @@ function startup(Cesium) {
 			//put the billboard in the queue (better FPS)
 			if(Cesium.defined(rt) && Cesium.defined(ld)) {
 				if (position.y < (rt.y+1000) && position.z < rt.z+200 && position.z > ld.z-150 && position.y > lt.y-1000) {
-					//fastLock = false;
+					fastLock = false;
 					fast[item.id] = 1;
 					fastColl.push(item.id);
 					fastIndex[item.id]=actualCollection;
@@ -325,11 +327,11 @@ function startup(Cesium) {
 				item.position = Cesium.Ellipsoid.WGS84.cartographicToCartesian(carto);
 				continue;
 			}
-			if (paused == 0){
+			if (paused < collectionCount){
 				item.position = position;
 				item.translucencyByDistance = undefined;
-				item.show = true;		
 			}
+			item.show = true;		
 		}
 	}
 	
