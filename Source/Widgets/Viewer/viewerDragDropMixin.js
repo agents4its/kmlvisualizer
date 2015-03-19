@@ -271,7 +271,7 @@ define([
 					spinner = new Spinner().spin(target);
 					
 					performanceContainer = document.createElement('div');
-					performanceContainer.className = 'cesium-performanceDisplay';
+					performanceContainer.className = 'cesium-loadingKML';
 					performanceContainer.style.position = 'absolute';
 					performanceContainer.style.top = '0';
 					performanceContainer.style.left = '0';

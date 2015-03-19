@@ -229,7 +229,6 @@ define([
     }
    
     function processTrack(dataSource,node) {
-		//console.log("track");
 		var firstCoor;
 		var firstTime;
 		var secondCoor;
@@ -243,14 +242,11 @@ define([
         var times = new Array();
         for (var i = 0; i < timeNodes.length; i++) {
             var coor1 = readCoordinate(coordNodes[i]);
-			//console.log(coor1);
             var time1 = JulianDate.fromIso8601(timeNodes[i]);
-			//console.log(time1);
 			if(JulianDate.lessThan(time1,dataSource._startTime)){
 				dataSource._startTime = time1;
 			}
 			if(JulianDate.greaterThan(time1,dataSource._endTime)){
-				//console.log(JulianDate.toIso8601(time1));
 				dataSource._endTime = time1;
 			}
 			if (!coor1.equals(firstCoor)){
@@ -277,9 +273,11 @@ define([
 		times[index+1] = secondTime;
 		
         var property = new SampledPositionProperty();
-		//console.log(times + " casy");
-		//console.log(coordinates);
         property.addSamples(times, coordinates);
+		if (property._property._times.length < 2){
+			console.log("Placemark id:"+node.id+"  is not dynamic - has less than 2 <when> tags");
+			return;
+		}
 		dataSource._positions.push(property);
 		return property;
     }
@@ -299,18 +297,16 @@ define([
 		processTrack(dataSource,placemark);
 		if (dataSource._totalPlacemarks % 1000 == 0) {
 			showLoading=dataSource._totalPlacemarks;
-			document.getElementsByClassName('cesium-performanceDisplay')[0].childNodes[0].childNodes[0].textContent 
+			document.getElementsByClassName('cesium-loadingKML')[0].childNodes[0].childNodes[0].textContent 
 			= "Loading: "+showLoading+" placemarks";
 		}
 	}
 	function processStyle(dataSource) {
-		//console.log("style");
 		var node = nodes.pop();
 		dataSource._styles['#'+node.id] = node.href;
 	}
 
 	function processLookAt(dataSource){
-		//console.log("lookAt");
 		var node = nodes.pop();
 		dataSource._lookAt[0] = parseFloat(node.longitude);
 		dataSource._lookAt[1] = parseFloat(node.latitude);
@@ -358,7 +354,6 @@ define([
 				return;
 			}
 			parent[dataSource._actualElement] = ch;
-			//console.log(parent);
 		}
 	}
 	
