@@ -209,6 +209,7 @@ define([
         this._yTable = [];
 		this._nextTime;
 		this._prevTime;
+		this._isActive = true;
         this._packedLength = packedLength;
         this._packedInterpolationLength = packedInterpolationLength;
         this._updateTableLength = true;
@@ -290,6 +291,11 @@ define([
 		prevTime : {
 			get : function() {
 				return this._prevTime;
+			}
+		},
+		isActive : {
+			get : function() {
+				return this._isActive;
 			}
 		},
         /**
@@ -395,6 +401,7 @@ define([
         var innerType = this._innerType;
         var times = this._times;
         var values = this._values;
+		this._isActive = true;
         var index = binarySearch(times, time, JulianDate.compare);
 		
 		if (JulianDate.compare(time,times[0]) < 0) {
@@ -402,6 +409,7 @@ define([
 			this._nextTime = times[0];
 			this._prevTime = JulianDate.fromIso8601("2010-09-01T00:00:00Z");
 		//	console.log( this._nextTime+ " " + this._prevTime);
+			this._isActive = false;
 			return new Cartesian3.fromElements(values[0],values[1],values[2]);
 		}
 		if (JulianDate.compare(time,times[times.length-1]) > 0) {
@@ -409,6 +417,7 @@ define([
 			var length = values.length;
 			this._nextTime = times[times.length-1];
 			this._prevTime = times[times.length-2];
+			this._isActive = false;
 			//console.log( times[times.length-1] + " " +times[times.length-2]);
 			return new Cartesian3.fromElements(values[length-3],values[length-2],values[length-1]);
 		}
@@ -511,8 +520,14 @@ define([
             // Interpolate!
             var x = JulianDate.secondsDifference(time, times[lastIndex]);
             var interpolationResult;
+			var interpolationResultNext = [];
             if (inputOrder === 0 || !defined(interpolationAlgorithm.interpolate)) {
                 interpolationResult = interpolationAlgorithm.interpolateOrderZero(x, xTable, yTable, packedInterpolationLength, this._interpolationResult);
+				interpolationAlgorithm.interpolateOrderZero(x+1, xTable, yTable, packedInterpolationLength, interpolationResultNext);
+				if (interpolationResult[0] == interpolationResultNext[0] &&
+					interpolationResult[1] == interpolationResultNext[1]) {
+						this._isActive = false;
+				}
             } else {
                 var yStride = Math.floor(packedInterpolationLength / (inputOrder + 1));
                 interpolationResult = interpolationAlgorithm.interpolate(x, xTable, yTable, yStride, inputOrder, inputOrder, this._interpolationResult);

@@ -388,6 +388,9 @@ define([
         this._pinBuilder = new PinBuilder();
 		this._actualElement;
 		this._totalPlacemarks = 0;
+		this._isActive = true;
+		this._firstIndex = 0;
+		this._lastIndex = 0;
 		
     };
 
@@ -531,7 +534,31 @@ define([
 			get : function() {
 				return this._totalPlacemarks;
 			}
-		}
+		},
+		isActive : {
+			get : function() {
+				return this._isActive;
+			},
+			set : function (value) {
+				this._isActive = value;
+			}
+		},
+		firstIndex : {
+			get : function() {
+				return this._firstIndex;
+			},
+			set : function (value) {
+				this._firstIndex = value;
+			}
+		},
+		lastIndex : {
+			get : function() {
+				return this._lastIndex;
+			},
+			set : function (value) {
+				this._lastIndex = value;
+			}
+		},
     });
 
 	

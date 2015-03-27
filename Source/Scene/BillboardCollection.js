@@ -182,6 +182,8 @@ define([
 
         this._colorCommands = [];
         this._pickCommands = [];
+		
+		this._dataSource;
 
         /**
          * The 4x4 transformation matrix that transforms each billboard in this collection from model to world coordinates.
@@ -322,7 +324,15 @@ define([
             set : function(value) {
                 this._destroyTextureAtlas = value;
             }
-        }
+        },
+		dataSource : {
+			get : function() {
+				return this._dataSource;
+			},
+			set : function(value) {
+				this._dataSource = value;
+			}
+		}
     });
 
     /**

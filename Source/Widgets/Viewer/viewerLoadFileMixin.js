@@ -56,6 +56,7 @@ define([
 	var spinner;
 	var performanceContainer;
 	var viewer;
+	var kmlFiles = 0;
     /**
      * A mixin which adds default drag and drop support for CZML files to the Viewer widget.
      * Rather than being called directly, this function is normally passed as
@@ -90,12 +91,13 @@ define([
         //>>includeEnd('debug');
 		viewer = widget;
 		
-		document.querySelector("#fileInput").onchange = handleFiles;
+		document.querySelector("#fileInput").addEventListener('change',handleFiles);
     };
-
+	
 	function handleFiles(){
 		var file = document.getElementById('fileInput').files[0];
 		//console.log(file.name);
+					
 		var reader = new FileReader();
 		reader.onload = createOnLoadCallback(viewer,file);
 		reader.readAsText(file);
@@ -107,8 +109,8 @@ define([
 
     function createOnLoadCallback(viewer, file) {
         return function(evt) {
-				viewer.entities.removeAll();
-                viewer.dataSources.removeAll();
+			//	viewer.entities.removeAll();
+             //   viewer.dataSources.removeAll();
             var fileName = file.name;
             try {
                 var loadPromise;
@@ -179,7 +181,7 @@ define([
                     return;
                 }
 				
-				interval = setInterval( function () {showMessage(dataSource2,viewer)},10);
+				interval = setInterval( function () {showMessage(dataSource2,viewer,file)},10);
 				//if(dataSource2.isEnd){
 				//	viewer.dataSources.add(dataSource2);
 				//}
@@ -194,14 +196,50 @@ define([
             }
         };
     }
-	function showMessage(dataSource,viewer){
+	function showMessage(dataSource,viewer,file){
 		//console.log(dataSource.totalPlacemarks);
 		if(dataSource.isEnd){
+			createCheckBox(file);
 			viewer.dataSources.add(dataSource);
 			clearInterval(interval);
 			clearInterval(interval-1);
 			spinner.stop();
 			document.body.removeChild(performanceContainer);
+		}
+	}
+	
+	function createCheckBox(file){
+		var display = document.getElementById('checkBoxList');
+		if (!display) {
+			display = document.createElement('checkBoxList');
+			display.style.backgroundColor = 'rgba(40, 40, 40, 0.7)';
+			display.style.padding = '7px';
+			display.style['border-radius'] = '5px';
+			display.style.border = '1px solid #444';
+			display.style.marginTop = '5px'
+			document.getElementById('toolbar').appendChild(display);
+			display.style.display = "block";
+			display.id = "checkBoxList";
+		}
+		var div = document.createElement('div');
+		var checkBox = document.createElement("INPUT");
+		checkBox.setAttribute("type", "checkbox");
+		
+		div.style.display = "block";
+		
+		if (!document.getElementById(file.name)){
+			checkBox.id = kmlFiles;
+			kmlFiles++;
+			
+			var newlabel = document.createElement("Label");
+			newlabel.setAttribute("for",kmlFiles-1);
+			newlabel.innerHTML = file.name;
+			
+			div.appendChild(checkBox);
+			div.appendChild(newlabel);
+			display.appendChild(div);
+
+			checkBox.checked = true;
 		}
 	}
 
