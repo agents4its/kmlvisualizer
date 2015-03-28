@@ -100,14 +100,15 @@ function startup(Cesium) {
 	   dataSource.firstIndex = totalCollection;
 	   totalCollection++;
 	   //create billboards and billboardCollections
-		for(var i = 0; i < billPerColl; i++){
-			bill++;
+		for (var i = 0; i < billPerColl; i++) {
 			var imageUrl = dataSource.styles[dataSource.stylesArray[count]];
 			count++;
-		billboards.add({
-			id : bill,
-			image : imageUrl,
-			scaleByDistance :  new Cesium.NearFarScalar(1.5e3, 1, 8.0e5, 0.0)
+			bill++;
+			
+			billboards.add({
+				id : bill,
+				image : imageUrl,
+				scaleByDistance :  new Cesium.NearFarScalar(1.5e3, 1, 8.0e5, 0.0)
 			})
 		}
 	}
@@ -337,10 +338,8 @@ function startup(Cesium) {
 	
 	function clearVariables(){
 		count = 0;
-		//bill = -1;
 		collectionCount = 0;
 		restBill = 0;
-		//actualCollection = -1;
 		billPerColl = 10000;
 	}
 	
@@ -354,8 +353,20 @@ function startup(Cesium) {
 		}
 	}
 	
+	function setTranslucencyForAll() {
+		for (var i = 0; i < viewer.scene.primitives.length; i++) {
+			var collection = viewer.scene.primitives.get(i);
+			for (var j = 0; j < collection.length; j++){
+				var item = collection.get(j);
+				if (Cesium.defined(item.translucencyByDistance)){
+					item.translucencyByDistance = translucency;
+				}
+			}
+		}
+	
+	}
+	
 	function labelHandler(event){
-		//console.log(event.target.checked);
 		var dataSource  = viewer.dataSources.get(event.target.id);
 		if (!event.target.checked) {
 			dataSource.isActive = false;
@@ -441,6 +452,17 @@ function startup(Cesium) {
 		
 		Sandcastle.addToolbarButton('Load KML', function() {
 			document.querySelector("#fileInput").click();
+		});
+		
+		Sandcastle.addToolbarButton('Hide translucent', function() {
+			if (translucency.nearValue == 1) {
+				translucency.nearValue = 0;
+				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Show translucent';
+			} else {
+				translucency.nearValue = 1;
+				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Hide translucent';
+			}
+			setTranslucencyForAll();
 		});
 	
 }
