@@ -26,7 +26,7 @@
 
             document.body.className = document.body.className.replace(/(?:\s|^)sandcastle-loading(?:\s|$)/, ' ');
         },
-        addToolbarButton : function(text, onclick, toolbarID) {
+        addToolbarButton : function(text, onclick, toolbarID, hidden) {
             window.Sandcastle.declare(onclick);
             var button = document.createElement('button');
             button.type = 'button';
@@ -37,11 +37,18 @@
                 onclick();
             };
             button.textContent = text;
+			if (hidden) {
+				button.style.display = 'none';
+			}
             document.getElementById(toolbarID || 'toolbar').appendChild(button);
         },
         addDefaultToolbarButton : function(text, onclick, toolbarID) {
             window.Sandcastle.addToolbarButton(text, onclick, toolbarID);
             defaultAction = onclick;
+        },
+        addDefaultToolbarMenu : function(options, toolbarID) {
+            window.Sandcastle.addToolbarMenu(options, toolbarID);
+            defaultAction = options[0].onselect;
         },
         addToolbarMenu : function(options, toolbarID) {
             var menu = document.createElement('select');

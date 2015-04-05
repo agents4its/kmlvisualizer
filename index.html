@@ -462,8 +462,8 @@ function startup(Cesium) {
 				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Hide inactive';
 			}
 			setTranslucencyForAll();
-		});
-	
+		},'toolbar',true);
+		
 }
 if (typeof Cesium !== "undefined") {
     startup(Cesium);

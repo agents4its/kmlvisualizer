@@ -14,7 +14,8 @@ define([
 		'../../../spin',
 		'../../Scene/PerformanceDisplay',
 		'../../../jssaxparser/DefaultHandlers',
-		'../../../jssaxparser/sax'
+		'../../../jssaxparser/sax',
+		'../../../Apps/Sandcastle/Sandcastle-header'
     ], function(
         defaultValue,
 		Color,
@@ -30,7 +31,8 @@ define([
 		Spinner
 		,PerformanceDisplay,
 		DefaultHandlers,
-		sax) {
+		sax,
+		Sandcastle) {
     "use strict";
 
 	var opts = {
@@ -206,6 +208,8 @@ define([
 	function createCheckBox(file){
 		var display = document.getElementById('checkBoxList');
 		if (!display) {
+			//show translucency button
+			document.getElementsByClassName('cesium-button')[10].style.display = 'initial';
 			display = document.createElement('checkBoxList');
 			display.style.backgroundColor = 'rgba(40, 40, 40, 0.7)';
 			display.style.padding = '7px';
