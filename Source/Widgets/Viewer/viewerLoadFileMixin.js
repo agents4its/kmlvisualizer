@@ -10,7 +10,6 @@ define([
         '../../DataSources/CzmlDataSource',
         '../../DataSources/GeoJsonDataSource',
         '../../DataSources/KmlDataSource',
-		'../../DataSources/KmlDataSource2',
         '../getElement',
 		'../../../spin',
 		'../../Scene/PerformanceDisplay',
@@ -27,7 +26,6 @@ define([
         CzmlDataSource,
         GeoJsonDataSource,
         KmlDataSource,
-		KmlDataSource2,
         getElement,
 		Spinner
 		,PerformanceDisplay,
@@ -53,6 +51,8 @@ define([
 		left: '50%' // Left position relative to parent in px
 	};
 	var interval;
+	var saxParser;
+	var intervalKmz;
 	var spinner;
 	var performanceContainer;
 	var viewer;
@@ -95,9 +95,7 @@ define([
     };
 	
 	function handleFiles(){
-		var file = document.getElementById('fileInput').files[0];
-		//console.log(file.name);
-					
+		var file = document.getElementById('fileInput').files[0];		
 		var reader = new FileReader();
 		reader.onload = createOnLoadCallback(viewer,file);
 		reader.readAsText(file);
@@ -109,8 +107,6 @@ define([
 
     function createOnLoadCallback(viewer, file) {
         return function(evt) {
-			//	viewer.entities.removeAll();
-             //   viewer.dataSources.removeAll();
             var fileName = file.name;
             try {
                 var loadPromise;
@@ -125,8 +121,6 @@ define([
                         sourceUri : fileName
                     });
                 } else if (/\.(kml|kmz)$/i.test(fileName)) {
-                   dataSource = new KmlDataSource();
-                    var parser = new DOMParser();
 					var target = document.getElementById('cesiumContainer');
 					spinner = new Spinner().spin(target);
 					
@@ -159,32 +153,27 @@ define([
 					fpsText.nodeValue = 'Loading...';
 					
 					var contentHandler = new DefaultHandler2();
-					var dataSource2 = new KmlDataSource2();
-					contentHandler.setDataSource(dataSource2);
+					var dataSource = new KmlDataSource();
+					contentHandler.setDataSource(dataSource);
 
-					var saxParser = XMLReaderFactory.createXMLReader();
-
+					saxParser = XMLReaderFactory.createXMLReader();
 					saxParser.setHandler(contentHandler);
+					
+					if (/\.kmz$/i.test(fileName)){
+						dataSource.loadKmz(dataSource,file,fileName);
+						intervalKmz = setInterval( function () {startParsingKmz(dataSource);},10);
+						interval = setInterval( function () {showMessage(dataSource,viewer,file)},10);
+						return;
+					}
 					setTimeout( function() {
 						saxParser.parseString(evt.target.result);
 					},0);
-				
-					//console.log("Start");
-				//	setTimeout( function() {
-				//		loadPromise = dataSource.load(parser.parseFromString(evt.target.result, "text/xml"), fileName,viewer);
-				//	},0);
-                } else if (/\.kmz$/i.test(fileName)) {
-                    dataSource = new KmlDataSource();
-                    loadPromise = dataSource.loadKmz(file, fileName);
                 } else {
                     viewer.dropError.raiseEvent(viewer, fileName, 'Unrecognized file: ' + fileName);
                     return;
                 }
 				
-				interval = setInterval( function () {showMessage(dataSource2,viewer,file)},10);
-				//if(dataSource2.isEnd){
-				//	viewer.dataSources.add(dataSource2);
-				//}
+				interval = setInterval( function () {showMessage(dataSource,viewer,file)},10);
 
                 if (defined(loadPromise)) {
                     loadPromise.otherwise(function(error) {
@@ -196,8 +185,14 @@ define([
             }
         };
     }
+	function startParsingKmz(dataSource){
+		if (defined(dataSource._uriResolver) && defined(dataSource._uriResolver.kml)) {
+			clearInterval(intervalKmz);
+			clearInterval(intervalKmz-1);
+			saxParser.parseString(dataSource._uriResolver.kml);
+		}
+	}
 	function showMessage(dataSource,viewer,file){
-		//console.log(dataSource.totalPlacemarks);
 		if(dataSource.isEnd){
 			createCheckBox(file);
 			viewer.dataSources.add(dataSource);

@@ -45,7 +45,6 @@ function startup(Cesium) {
 		});
 	viewer.extend(Cesium.viewerDragDropMixin);
 	var LoadMixin = new Cesium.viewerLoadFileMixin(viewer);
-	//viewer.scene.debugShowFramesPerSecond = true;
 	
 	var paused = 0;
 	var pausedFast = 0;
@@ -160,13 +159,12 @@ function startup(Cesium) {
 		var totalCount = viewer.dataSources.get(viewer.dataSources.length-1).positions.length;
 		collectionCount = Math.floor(totalCount/billPerColl);
 
-		if (collectionCount == 0){
+		if (collectionCount == 0) {
 			billPerColl = totalCount;
 			collectionCount = 1;
 		} else {
 			var rest = totalCount % billPerColl;
-			
-			if(rest != 0){
+			if (rest != 0){
 				collectionCount++;
 				restBill = rest;
 			}
@@ -174,7 +172,7 @@ function startup(Cesium) {
 	}
 	
 	//animation of items in the current area of camera view
-	function drawFast(){
+	function drawFast() {
 		if (Cesium.JulianDate.equals(prevTimeFast,viewer.clock.currentTime)) {
 			pausedFast++;
 		} else {
@@ -421,6 +419,7 @@ function startup(Cesium) {
 
 		//console.log(" l ",cg.latitude*180/Math.PI,cg.longitude*180/Math.PI);
 		if (Cesium.defined(pickedObject)) {
+			console.log(pickedObject);
 			var entity = new Cesium.Entity({id: pickedObject.id});
 			//console.log(pickedObject.primitive._actualPosition);
 			var pickedPosition = pickedObject.primitive._actualPosition;
@@ -454,13 +453,13 @@ function startup(Cesium) {
 			document.querySelector("#fileInput").click();
 		});
 		
-		Sandcastle.addToolbarButton('Hide translucent', function() {
+		Sandcastle.addToolbarButton('Hide inactive', function() {
 			if (translucency.nearValue == 1) {
 				translucency.nearValue = 0;
-				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Show translucent';
+				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Show inactive';
 			} else {
 				translucency.nearValue = 1;
-				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Hide translucent';
+				document.getElementsByClassName('cesium-button')[10].childNodes[0].nodeValue = 'Hide inactive';
 			}
 			setTranslucencyForAll();
 		});

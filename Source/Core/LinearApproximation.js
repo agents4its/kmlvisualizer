@@ -72,6 +72,7 @@ define([
             y1 = yTable[i + yStride];
             result[i] = (((y1 - y0) * x) + (x1 * y0) - (x0 * y1)) / (x1 - x0);
         }
+
         return result;
     };
 

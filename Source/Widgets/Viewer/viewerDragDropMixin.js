@@ -1,7 +1,6 @@
 /*global define*/
 define([
         '../../Core/defaultValue',
-		'../../Core/Color',
         '../../Core/defined',
         '../../Core/defineProperties',
         '../../Core/DeveloperError',
@@ -10,15 +9,9 @@ define([
         '../../DataSources/CzmlDataSource',
         '../../DataSources/GeoJsonDataSource',
         '../../DataSources/KmlDataSource',
-		'../../DataSources/KmlDataSource2',
-        '../getElement',
-		'../../../spin',
-		'../../Scene/PerformanceDisplay',
-		'../../../jssaxparser/DefaultHandlers',
-		'../../../jssaxparser/sax'
+        '../getElement'
     ], function(
         defaultValue,
-		Color,
         defined,
         defineProperties,
         DeveloperError,
@@ -27,34 +20,9 @@ define([
         CzmlDataSource,
         GeoJsonDataSource,
         KmlDataSource,
-		KmlDataSource2,
-        getElement,
-		Spinner
-		,PerformanceDisplay,
-		DefaultHandlers,
-		sax) {
+        getElement) {
     "use strict";
 
-	var opts = {
-		lines: 10, // The number of lines to draw
-		length: 7, // The length of each line
-		width: 4, // The line thickness
-		radius: 10, // The radius of the inner circle
-		corners: 1, // Corner roundness (0..1)
-		rotate: 0, // The rotation offset
-		color: '#FFFFE0', // #rgb or #rrggbb
-		speed: 1, // Rounds per second
-		trail: 60, // Afterglow percentage
-		shadow: false, // Whether to render a shadow
-		hwaccel: true, // Whether to use hardware acceleration
-		className: 'spinner', // The CSS class to assign to the spinner
-		zIndex: 2e9, // The z-index (defaults to 2000000000)
-		top: '50%', // Top position relative to parent in px
-		left: '50%' // Left position relative to parent in px
-	};
-	var interval;
-	var spinner;
-	var performanceContainer;
     /**
      * A mixin which adds default drag and drop support for CZML files to the Viewer widget.
      * Rather than being called directly, this function is normally passed as
@@ -254,7 +222,6 @@ define([
             var fileName = file.name;
             try {
                 var loadPromise;
-				var dataSource;
 
                 if (/\.czml$/i.test(fileName)) {
                     loadPromise = CzmlDataSource.load(JSON.parse(evt.target.result), {
@@ -265,69 +232,23 @@ define([
                         sourceUri : fileName
                     });
                 } else if (/\.(kml|kmz)$/i.test(fileName)) {
-                   dataSource = new KmlDataSource();
-                    var parser = new DOMParser();
-					var target = document.getElementById('cesiumContainer');
-					spinner = new Spinner().spin(target);
+					var inputElement = document.getElementById('fileInput');
+					inputElement.files[0] = file;
 					
-					performanceContainer = document.createElement('div');
-					performanceContainer.className = 'cesium-loadingKML';
-					performanceContainer.style.position = 'absolute';
-					performanceContainer.style.top = '0';
-					performanceContainer.style.left = '0';
-					performanceContainer.style.right = '0';
-					performanceContainer.style.bottom = '0';
-					var container = document.body;
-					container.appendChild(performanceContainer);
-					performanceContainer.style.backgroundColor = 'rgba(40, 40, 40, 0.7)';
-					
-					var display = document.createElement('div');
-					var fpsElement = document.createElement('div');
-					var fpsText = document.createTextNode("Loading...");
-					fpsElement.appendChild(fpsText);
-					fpsElement.style.color = "#FFFF00";
-					display.appendChild(fpsElement);
-					display.style['z-index'] = 1;
-					display.style.top ='48%';
-					display.style.left = '52%';
-					display.style.position = 'absolute';
-					display.style.font = this._font;
-					display.style.padding = '7px';
-					display.style['border-radius'] = '5px';
-					display.style.border = '1px solid #444';
-					performanceContainer.appendChild(display);
-					fpsText.nodeValue = 'Loading...';
-					
-					var contentHandler = new DefaultHandler2();
-					var dataSource2 = new KmlDataSource2();
-					contentHandler.setDataSource(dataSource2);
-
-					var saxParser = XMLReaderFactory.createXMLReader();
-
-					saxParser.setHandler(contentHandler);
-					setTimeout( function() {
-						saxParser.parseString(evt.target.result);
-					},0);
-				
-					//console.log("Start");
-				//	setTimeout( function() {
-				//		loadPromise = dataSource.load(parser.parseFromString(evt.target.result, "text/xml"), fileName,viewer);
-				//	},0);
-                } else if (/\.kmz$/i.test(fileName)) {
-                    dataSource = new KmlDataSource();
-                    loadPromise = dataSource.loadKmz(file, fileName);
+					if ("createEvent" in document) {
+					   var evt = document.createEvent("HTMLEvents");
+					   evt.initEvent("change", false, true);
+					   inputElement.dispatchEvent(evt);
+					} else
+						inputElement.fireEvent("onchange");
+						return;
                 } else {
                     viewer.dropError.raiseEvent(viewer, fileName, 'Unrecognized file: ' + fileName);
                     return;
                 }
-				
-				interval = setInterval( function () {showMessage(dataSource2,viewer)},10);
-				//if(dataSource2.isEnd){
-				//	viewer.dataSources.add(dataSource2);
-				//}
 
                 if (defined(loadPromise)) {
-                    loadPromise.otherwise(function(error) {
+                    viewer.dataSources.add(loadPromise).otherwise(function(error) {
                         viewer.dropError.raiseEvent(viewer, fileName, error);
                     });
                 }
@@ -336,16 +257,6 @@ define([
             }
         };
     }
-	function showMessage(dataSource,viewer){
-		//console.log(dataSource.totalPlacemarks);
-		if(dataSource.isEnd){
-			viewer.dataSources.add(dataSource);
-			clearInterval(interval);
-			clearInterval(interval-1);
-			spinner.stop();
-			document.body.removeChild(performanceContainer);
-		}
-	}
 
     function createDropErrorCallback(viewer, file) {
         return function(evt) {

@@ -94,25 +94,85 @@ define([
         RectangleGraphics,
         SampledPositionProperty) {
     "use strict";
+	
+	//This is by no means an exhaustive list of MIME types.
+    //The purpose of this list is to be able to accurately identify content embedded
+    //in KMZ files. Eventually, we can make this configurable by the end user so they can add
+    //there own content types if they have KMZ files that require it.
+    var MimeTypes = {
+        avi : "video/x-msvideo",
+        bmp : "image/bmp",
+        bz2 : "application/x-bzip2",
+        chm : "application/vnd.ms-htmlhelp",
+        css : "text/css",
+        csv : "text/csv",
+        doc : "application/msword",
+        dvi : "application/x-dvi",
+        eps : "application/postscript",
+        flv : "video/x-flv",
+        gif : "image/gif",
+        gz : "application/x-gzip",
+        htm : "text/html",
+        html : "text/html",
+        ico : "image/vnd.microsoft.icon",
+        jnlp : "application/x-java-jnlp-file",
+        jpeg : "image/jpeg",
+        jpg : "image/jpeg",
+        m3u : "audio/x-mpegurl",
+        m4v : "video/mp4",
+        mathml : "application/mathml+xml",
+        mid : "audio/midi",
+        midi : "audio/midi",
+        mov : "video/quicktime",
+        mp3 : "audio/mpeg",
+        mp4 : "video/mp4",
+        mp4v : "video/mp4",
+        mpeg : "video/mpeg",
+        mpg : "video/mpeg",
+        odp : "application/vnd.oasis.opendocument.presentation",
+        ods : "application/vnd.oasis.opendocument.spreadsheet",
+        odt : "application/vnd.oasis.opendocument.text",
+        ogg : "application/ogg",
+        pdf : "application/pdf",
+        png : "image/png",
+        pps : "application/vnd.ms-powerpoint",
+        ppt : "application/vnd.ms-powerpoint",
+        ps : "application/postscript",
+        qt : "video/quicktime",
+        rdf : "application/rdf+xml",
+        rss : "application/rss+xml",
+        rtf : "application/rtf",
+        svg : "image/svg+xml",
+        swf : "application/x-shockwave-flash",
+        text : "text/plain",
+        tif : "image/tiff",
+        tiff : "image/tiff",
+        txt : "text/plain",
+        wav : "audio/x-wav",
+        wma : "audio/x-ms-wma",
+        wmv : "video/x-ms-wmv",
+        xml : "application/xml",
+        zip : "application/zip",
+
+        detectFromFilename : function(filename) {
+            var ext = filename.toLowerCase();
+            ext = ext.substr(ext.lastIndexOf('.') + 1);
+            return MimeTypes[ext];
+        }
+    };
 
     var parser = new DOMParser();
     var scratchCartographic = new Cartographic();
     var scratchCartesian = new Cartesian3();
 	var indexFirst =0;
 	var indexSecond = 0;
-	var totalPlacemarks=1;
 	var showLoading = 0;
 
-    
-
-    function loadXmlFromZip(reader, entry, uriResolver, deferred) {
+    function loadXmlFromZip(reader, entry, uriResolver) {
         entry.getData(new zip.TextWriter(), function(text) {
-            uriResolver.kml = parser.parseFromString(text, 'application/xml');
-            deferred.resolve();
-        }, function(current, total) {
-            // onprogress callback
+            uriResolver.kml = text;
         });
-    }
+	}
 
     function proxyUrl(url, proxy) {
         if (defined(proxy)) {
@@ -126,26 +186,11 @@ define([
     }
 
     //Helper functions
-    function readCoordinate(element, altitudeMode) {
-		//console.log(element);
+    function readCoordinate(element) {
         var baseHeight = 0;
-        switch (altitudeMode) {
-        case 'absolute':
-            //TODO MSL + height
-            break;
-        case 'relativeToGround':
-            //TODO Terrain + height
-            break;
-        case 'clampToGround ':
-            //TODO on terrain, ignore altitude
-            break;
-        default:
-            //TODO Same as clampToGround
-            break;
-        }
-        var digits = element.textContent.trim().split(/[\s,\n]+/g);
-        scratchCartographic = Cartographic.fromDegrees(digits[0], digits[1], 1, scratchCartographic);
-		//console.log(scratchCartographic +" " +digits[0] + " " +digits[1]);
+        
+        var digits = element.trim().split(/[\s,\n]+/g);
+        scratchCartographic = Cartographic.fromDegrees(digits[0], digits[1], 3, scratchCartographic);
 		var result = Ellipsoid.WGS84.cartographicToCartesian(scratchCartographic);
 		
         return result;
@@ -173,7 +218,6 @@ define([
     };
 
     function queryFirstNode(node, tagName, namespace) {
-		//console.log(node);
         var childNodes = node.childNodes;
         var length = childNodes.length;
         for (var q = 0; q < length; q++) {
@@ -228,7 +272,6 @@ define([
         return undefined;
     }
 	function queryLookAt(node, tagName, namespace) {
-		//console.log(node);
         var result = queryFirstNode(node, tagName, namespace);
         if (defined(result)) {
             return result;
@@ -243,33 +286,26 @@ define([
         }
         return undefined;
     }
-
-
    
-    function processTrack(dataSource, geometryNode) {
-		//console.log("track");
+    function processTrack(dataSource,node) {
 		var firstCoor;
 		var firstTime;
 		var secondCoor;
 		var secondTime;
 		var index = 0;
 		
-        var altitudeMode = queryStringValue(geometryNode, 'altitudeMode', namespaces.kml);
-        var coordNodes = queryChildNodes(geometryNode, 'coord', namespaces.gx);
-        var timeNodes = queryChildNodes(geometryNode, 'when', namespaces.kml);
+        var coordNodes = node.coord;
+        var timeNodes = node.when;
 		
         var coordinates = new Array()
         var times = new Array();
         for (var i = 0; i < timeNodes.length; i++) {
-            var coor1 = readCoordinate(coordNodes[i], altitudeMode);
-			//console.log(coor1);
-            var time1 = JulianDate.fromIso8601(timeNodes[i].textContent);
-			//console.log(time1);
+            var coor1 = readCoordinate(coordNodes[i]);
+            var time1 = JulianDate.fromIso8601(timeNodes[i]);
 			if(JulianDate.lessThan(time1,dataSource._startTime)){
 				dataSource._startTime = time1;
 			}
 			if(JulianDate.greaterThan(time1,dataSource._endTime)){
-				//console.log(JulianDate.toIso8601(time1));
 				dataSource._endTime = time1;
 			}
 			if (!coor1.equals(firstCoor)){
@@ -296,163 +332,123 @@ define([
 		times[index+1] = secondTime;
 		
         var property = new SampledPositionProperty();
-		//console.log(times + " casy");
-		//console.log(coordinates);
         property.addSamples(times, coordinates);
+		if (property._property._times.length < 2){
+			console.log("Placemark id:"+node.id+"  is not dynamic - has less than 2 <when> tags");
+			return;
+		}
 		dataSource._positions.push(property);
 		return property;
     }
 
-
-    var geometryTypes = {
-        Track : processTrack,
-    };
-
-    function processDocument(dataSource, parent, node) {
-		dataSource._isEnd = true;
-        var featureTypeNames = Object.keys(featureTypes);
-        var featureTypeNamesLength = featureTypeNames.length;
-
-        for (var i = indexFirst; i < featureTypeNamesLength; i++) {
-            var featureName = featureTypeNames[i];
-            var processFeatureNode = featureTypes[featureName];
-
-            var childNodes = node.childNodes;
-			//console.log(childNodes.length + " childNodes"  +" "+node.localName);
-            var length = childNodes.length;
-            for (var q = indexSecond; q < length; q++) {
-				if(totalPlacemarks % 1000 == 0){
-					showLoading+=totalPlacemarks;
-					totalPlacemarks = 1;
-					indexFirst = i;
-					indexSecond = q;
-					dataSource._isEnd = false;
-					document.getElementsByClassName('cesium-performanceDisplay')[1].childNodes[0].childNodes[0].textContent = "Loading: "+showLoading+" placemarks";
-					setTimeout( function() {
-					//console.log(totalPlacemarks+ " b "+q+" "+i);
-						processDocument(dataSource,parent,node);
-						},0);
-						return;	
-				}
-                var child = childNodes[q];
-                if (child.localName === featureName && namespaces.kml.indexOf(child.namespaceURI) !== -1) {
-                   var pom =  processFeatureNode(dataSource, parent, child);
-                }
-            }
-        }
-    }
-
-    function processFolder(dataSource, parent, node) {
-        parent = new Entity({id:createId(node)});
-        parent.name = queryStringValue(node, 'name', namespaces.kml);
-		var cameraStart = queryLookAt(node, 'LookAt', namespaces.kml);
-		var style = queryNodes(node, 'Style', namespaces.kml);
-		var child = queryNodes(style[0],'href',namespaces.kml);
-		for (var i = 0; i < style.length;i++){
-			var icon = queryNodes(style[i],'href',namespaces.kml);
-			var href = icon[0].textContent;
-			dataSource._styles['#'+style[i].attributes.id.value] = href;
+	
+	var supportedTypes = {
+		LookAt : processLookAt,
+		Style : processStyle,
+		Placemark : processPlacemark,
+	};
+	
+	function processPlacemark(dataSource) {
+		dataSource._totalPlacemarks++;
+		var placemark = nodes.pop();
+		dataSource._stylesArray.push(placemark.styleUrl);
+		dataSource._descriptions.push(placemark.description);
+		processTrack(dataSource,placemark);
+		if (dataSource._totalPlacemarks % 1000 == 0) {
+			showLoading=dataSource._totalPlacemarks;
+			document.getElementsByClassName('cesium-loadingKML')[0].childNodes[0].childNodes[0].textContent 
+			= "Loading: "+showLoading+" placemarks";
 		}
-		if (defined(cameraStart)) {
-			dataSource._lookAt[0] = queryNumericValue(cameraStart,'longitude',namespaces.kml);
-			dataSource._lookAt[1] = queryNumericValue(cameraStart,'latitude',namespaces.kml);
-			dataSource._lookAt[2] = queryNumericValue(cameraStart,'altitude',namespaces.kml);
+	}
+	function processStyle(dataSource) {
+		var node = nodes.pop();
+		var id ='#'+node.id
+		dataSource._styles[id] = node.href;
+		if (dataSource._isZipped){
+			dataSource._styles[id] = resolveHref(node.href,dataSource._sourceUri,dataSource._uriResolver);
 		}
-        processDocument(dataSource, parent, node);
-    }
+	}
 
-    function processPlacemark(dataSource, parent, placemark) {
-		totalPlacemarks++;
-
-        var id = createId(placemark.id);
-        var name = queryStringValue(placemark, 'name', namespaces.kml);
-        var description = queryStringValue(placemark, 'description', namespaces.kml);
-		var styleID = queryStringValue(placemark, 'styleUrl', namespaces.kml);
-		dataSource._stylesArray.push(styleID);
-		dataSource._descriptions.push(description);
-        var visibility = queryBooleanValue(placemark, 'visibility', namespaces.kml);
-        var timeSpanNode = queryFirstNode(placemark, 'TimeSpan', namespaces.kml);
-
-        var hasGeometry = false;
-        var childNodes = placemark.childNodes;
-        for (var i = 0, len = childNodes.length; i < len && !hasGeometry; i++) {
-            var childNode = childNodes.item(i);
-            var geometryProcessor = geometryTypes[childNode.localName];
-            if (defined(geometryProcessor)) {
-                var pom = geometryProcessor(dataSource, childNode);
-                hasGeometry = true;
-            }
-        }
-        if (!hasGeometry) {
-            entity.merge(styleEntity);
-        }
-		return pom;
-    }
-
+	function processLookAt(dataSource){
+		var node = nodes.pop();
+		dataSource._lookAt[0] = parseFloat(node.longitude);
+		dataSource._lookAt[1] = parseFloat(node.latitude);
+		dataSource._lookAt[2] = parseFloat(node.altitude);
+	}
    
 
     function processUnsupported(dataSource, parent, node, entityCollection, styleCollection, sourceUri, uriResolver) {
         window.console.log('Unsupported feature: ' + node.nodeName);
     }
-
-    var featureTypes = {
-        Document : processDocument,
-        Folder : processFolder,
-        Placemark : processPlacemark
-    };
-
-    function processFeatureNode(dataSource, node, parent) {
-        var featureProocessor = featureTypes[node.nodeName];
-        if (!defined(featureProocessor)) {
-            featureProocessor = featureTypes[node.nodeName];
-        }
-        if (defined(featureProocessor)) {
-           var pom = featureProocessor(dataSource, parent, node);
-        } else {
-            window.console.log('Unsupported feature node: ' + node.nodeName);
-        }
-		return pom;
+	function setActualElement(dataSource,element,id) {
+		dataSource._actualElement = element;
+		if (defined(supportedTypes[element])) {
+			var node = {
+				name : element};
+			if (id != null) {
+				node["id"] = id;
+			}
+			nodes.push(node);
+		}
+	}
+	
+	function handleEndElement(dataSource,element) {
+		if (element == "kml"){
+			dataSource._isEnd = true;
+			return;
+		}
+		if(nodes.length >0 && nodes[nodes.length-1].name == element){
+			var elementProcessor = supportedTypes[element];
+			if (defined(elementProcessor)) {
+				elementProcessor(dataSource);
+				return;
+			}
+		}
+	}
+	
+	function setCharacters(dataSource,ch){
+		if (nodes.length > 0) {
+			var parent = nodes[nodes.length-1];
+			if (dataSource._actualElement == "when" || dataSource._actualElement == "coord"){
+				if (parent[dataSource._actualElement] == undefined){
+					parent[dataSource._actualElement] = [];
+				}
+				parent[dataSource._actualElement].push(ch);
+				return;
+			}
+			parent[dataSource._actualElement] = ch;
+		}
+	}
+	
+	function loadDataUriFromZip(reader, entry, uriResolver) {
+        var mimeType = defaultValue(MimeTypes.detectFromFilename(entry.filename), 'application/octet-stream');
+        entry.getData(new zip.Data64URIWriter(mimeType), function(dataUri) {
+            uriResolver[entry.filename] = dataUri;
+        });
     }
-
-    function loadKml(dataSource, kml, sourceUri, uriResolver) {
-        var docElement = queryFirstNode(kml.documentElement, 'Document', namespaces.kml);
-        var name = docElement ? queryStringValue(docElement, 'name', namespaces.kml) : undefined;
-        if (!defined(name) && defined(sourceUri)) {
-            name = getFilenameFromUri(sourceUri);
+	
+	function resolveHref(href, sourceUri, uriResolver) {
+        if (!defined(href)) {
+            return undefined;
         }
-
-        if (dataSource._name !== name) {
-            dataSource._name = name;
-            dataSource._changed.raiseEvent(dataSource);
-        }
-        var styleCollection = new EntityCollection();
-        
-            var entityCollection = dataSource._entityCollection;
-            processFeatureNode(dataSource, kml.documentElement.firstElementChild, undefined);
-
-            var availability = entityCollection.computeAvailability();
-            if (availability.equals(Iso8601.MAXIMUM_INTERVAL)) {
-                if (defined(dataSource._clock)) {
-                    dataSource._clock = undefined;
-                    dataSource._changed.raiseEvent(dataSource);
-                }
-            } else {
-                var clock = new DataSourceClock();
-                clock.startTime = availability.start;
-                clock.stopTime = availability.stop;
-                clock.currentTime = availability.start;
-                clock.clockRange = ClockRange.LOOP_STOP;
-                clock.clockStep = ClockStep.SYSTEM_CLOCK_MULTIPLIER;
-                clock.multiplier = Math.min(Math.max(JulianDate.secondsDifference(availability.stop, availability.start) / 60, 60), 50000000);
-                if (!defined(dataSource._clock) || !(dataSource._clock.equals(clock))) {
-                    dataSource._clock = clock;
-                    dataSource._changed.raiseEvent(dataSource);
-                }
+        var hrefResolved = false;
+        if (defined(uriResolver)) {
+            var blob = uriResolver[href];
+            if (defined(blob)) {
+                hrefResolved = true;
+                href = blob;
             }
-
-            DataSource.setLoading(dataSource, false);
-            return dataSource;   
+        }
+        if (!hrefResolved && defined(sourceUri)) {
+            var baseUri = new Uri(document.location.href);
+            sourceUri = new Uri(sourceUri);
+            href = new Uri(href).resolve(sourceUri.resolve(baseUri)).toString();
+          //  href = proxyUrl(href, proxy);
+        }
+        return href;
     }
+	
+	var nodes = [];
    
     /**
      * A {@link DataSource} which processes Keyhole Markup Language (KML).
@@ -481,6 +477,15 @@ define([
         this._proxy = proxy;
 		this._isEnd = false;
         this._pinBuilder = new PinBuilder();
+		this._actualElement;
+		this._totalPlacemarks = 0;
+		this._isActive = true;
+		this._firstIndex = 0;
+		this._lastIndex = 0;
+		this._isZipped = false;
+		this._uriResolver;
+		this._sourceUri;
+		
     };
 
     /**
@@ -613,92 +618,79 @@ define([
 			get : function() {
 				return this._viewer;
 			}
-		}
+		},
+		actualElement : {
+			get : function() {
+				return this._actualElement;
+			}
+		},
+		totalPlacemarks: {
+			get : function() {
+				return this._totalPlacemarks;
+			}
+		},
+		isActive : {
+			get : function() {
+				return this._isActive;
+			},
+			set : function (value) {
+				this._isActive = value;
+			}
+		},
+		firstIndex : {
+			get : function() {
+				return this._firstIndex;
+			},
+			set : function (value) {
+				this._firstIndex = value;
+			}
+		},
+		lastIndex : {
+			get : function() {
+				return this._lastIndex;
+			},
+			set : function (value) {
+				this._lastIndex = value;
+			}
+		},
     });
 
-    /**
-     * Asynchronously loads the provided KML document, replacing any existing data.
-     *
-     * @param {Document} kml The parsed KML document to be processed.
-     * @param {string} sourceUri The url of the document which is used for resolving relative links and other KML features.
-     *
-     * @returns {Promise} a promise that will resolve when the KML is processed.
-     */
-    KmlDataSource.prototype.load = function(kml, sourceUri,viewer) {
-	indexFirst = 0;
-	indexSecond = 0;
-	totalPlacemarks = 1;
-        if (!defined(kml)) {
-            throw new DeveloperError('kml is required.');
-        }
-
-		this._viewer = viewer;
-		//console.log(this._viewer);
-        DataSource.setLoading(this, true);
-        var that = this;
-        return when(loadKml(this, kml, sourceUri, undefined)).otherwise(function(error) {
-            DataSource.setLoading(that, false);
-            that._error.raiseEvent(that, error);
-            return when.reject(error);
-        });
-    };
 	
-
-    /**
-     * Asynchronously loads the provided KMZ Blob, replacing any existing data.
-     *
-     * @param {Blob} kmz The KMZ document to be processed.
-     * @param {string} sourceUri The url of the document which is used for resolving relative links and other KML features.
-     *
-     * @returns {Promise} a promise that will resolve when the KMZ is processed.
-     */
-    KmlDataSource.prototype.loadKmz = function(kmz, sourceUri) {
-        if (!defined(kmz)) {
-            throw new DeveloperError('kmz is required.');
-        }
-
-        DataSource.setLoading(this, true);
-        var that = this;
-        return when(loadKmz(this, kmz, sourceUri)).otherwise(function(error) {
-            DataSource.setLoading(that, false);
-            that._error.raiseEvent(that, error);
-            return when.reject(error);
-        });
-    };
-
-    /**
-     * Asynchronously loads the KML or KMZ file at the provided url, replacing any existing data.
-     *
-     * @param {String} url The url to be processed.
-     *
-     * @returns {Promise} a promise that will resolve when the KMZ is processed.
-     */
-    KmlDataSource.prototype.loadUrl = function(url) {
-        if (!defined(url)) {
-            throw new DeveloperError('url is required.');
-        }
-
-        DataSource.setLoading(this, true);
-        var that = this;
-        return when(loadBlob(proxyUrl(url, this._proxy))).then(function(blob) {
-            return isZipFile(blob).then(function(isZip) {
-                if (isZip) {
-                    return loadKmz(that, blob, url);
-                }
-                return when(readBlob.asText(blob)).then(function(text) {
-                    var kml = parser.parseFromString(text, 'application/xml');
-                    //There's no official way to validate if the parse was successful.
-                    //The following if check seems to detect the error on all supported browsers.
-                    if ((defined(kml.body) && kml.body !== null) || kml.documentElement.tagName === 'parsererror') {
-                        throw new RuntimeError(kml.body.innerText);
+	KmlDataSource.prototype.startElement = function(element,id){
+		setActualElement(this,element,id);
+	};
+	
+	KmlDataSource.prototype.setCharacters = function(ch){
+		setCharacters(this,ch);
+	};
+   
+	KmlDataSource.prototype.endElement = function(element){
+		handleEndElement(this,element);
+	};
+	
+	KmlDataSource.prototype.loadKmz = function(dataSource, blob, sourceUri) {
+        zip.createReader(new zip.BlobReader(blob), function(reader) {
+			dataSource._isZipped = true;
+            reader.getEntries(function(entries) {
+                var foundKML = false;
+                var uriResolver = {};
+                for (var i = 0; i < entries.length; i++) {
+                    var entry = entries[i];
+                    if (!entry.directory) {
+                        if (!foundKML && /\.kml$/i.test(entry.filename)) {
+                            //Only the first KML file found in the zip is used.
+                            //https://developers.google.com/kml/documentation/kmzarchives
+                            foundKML = true;
+                            loadXmlFromZip(reader, entry, uriResolver);
+                        } else {
+                            loadDataUriFromZip(reader, entry, uriResolver);
+                        }
                     }
-                    return loadKml(that, kml, url, undefined);
-                });
+                }
+                    reader.close();
+					dataSource._uriResolver = uriResolver;
+					dataSource._sourceUri = sourceUri;
             });
-        }).otherwise(function(error) {
-            DataSource.setLoading(that, false);
-            that._error.raiseEvent(that, error);
-            return when.reject(error);
         });
     };
 
