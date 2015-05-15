@@ -29,13 +29,12 @@
 function startup(Cesium) {
     "use strict";
 	var viewer = new Cesium.Viewer('cesiumContainer', {
-		//resolutionScale: 0.5,
 		selectedImageryProviderViewModel : new Cesium.ProviderViewModel(
 			{
 				name : 'Open\u00adStreet\u00adMap',
 				iconUrl : Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
 				tooltip : 'OpenStreetMap (OSM) is a collaborative project to create a free editable map \
-		of the world.\nhttp://www.openstreetmap.org',
+							of the world.\nhttp://www.openstreetmap.org',
 				creationFunction : function() {
 					return new Cesium.OpenStreetMapImageryProvider({
 						url : 'http://tile.openstreetmap.org/'
@@ -77,9 +76,24 @@ function startup(Cesium) {
 		collectionCount--;
 		var dataSource = viewer.dataSources.get(viewer.dataSources.length-1);
 		setTimeline(dataSource);
+		if (!Cesium.defined(dataSource.firstIndex)){
+			dataSource.firstIndex = viewer.scene.primitives.length;
+			}
+			
+		if (dataSource.positions.length == 0){
+			dataSource.firstIndex = viewer.scene.primitives.length-1;
+			dataSource.lastIndex = viewer.scene.primitives.length;
+			if (totalCollection == 0){
+				clearInterval(intervalID);
+				clearInterval(intervalID-1);
+				return;
+			}
+			collectionCount = -1;
+		}
+	
 		//start animation
 		if (collectionCount < 0) {
-			dataSource.lastIndex = totalCollection;
+			dataSource.lastIndex = viewer.scene.primitives.length;
 			prevTime = viewer.clock.currentTime;
 			prevTimeFast = viewer.clock.currentTime;
 			clearInterval(intervalID);
@@ -90,23 +104,23 @@ function startup(Cesium) {
 			setTimeout(startFast, 1000);
 			return;
 		}
-	   var billboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
-	   if (restBill != 0 && collectionCount == 0) {
+		var billboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
+		if (restBill != 0 && collectionCount == 0) {
 			billPerColl = restBill;
-	   }
-	   billboards.dataSource = dataSource;
-	   
-	   dataSource.firstIndex = totalCollection;
-	   totalCollection++;
+		}
+		billboards.dataSource = dataSource;
+		totalCollection++;
 	   //create billboards and billboardCollections
 		for (var i = 0; i < billPerColl; i++) {
-			var imageUrl = dataSource.styles[dataSource.stylesArray[count]];
+			var style = dataSource.styles[dataSource.stylesArray[count]];
+
 			count++;
 			bill++;
 			
 			billboards.add({
 				id : bill,
-				image : imageUrl,
+				scale : style.scale,
+				image : style.href,
 				scaleByDistance :  new Cesium.NearFarScalar(1.5e3, 1, 8.0e5, 0.0)
 			})
 		}
@@ -211,7 +225,6 @@ function startup(Cesium) {
 			var position = cas.getValue(viewer.clock.currentTime);
 			
 			//if the item is inside the area
-			//TODO better checking
 			if (position.y < (pt.y+1000) && position.z < pt.z+200 && position.z > ld.z-150 && position.y > ld.y-1000) {
 				if (!backward) {
 					if (Cesium.defined(item.translucencyByDistance) && Cesium.JulianDate.compare(startMove[item.id],prevTimeFast) > 0) {
@@ -226,7 +239,6 @@ function startup(Cesium) {
 				}
 				//don't animate if the position is same as before
 				//set height = 0
-				//TODO problem with selectedEntity - different height
 				if (!cas._property.isActive) {
 					startMove[item.id] = cas._property._nextTime;
 					startMoveBack[item.id] = cas._property._prevTime;
@@ -261,7 +273,7 @@ function startup(Cesium) {
 			paused = 0;
 		}
 		
-		if (paused > totalCollection) {
+		if (paused > viewer.scene.primitives.length) {
 			return;
 		}
 		
@@ -277,11 +289,12 @@ function startup(Cesium) {
 		prevTime = viewer.clock.currentTime;
 		actualCollection++;
 
-		if (actualCollection==totalCollection){
+		if (actualCollection==viewer.scene.primitives.length){
 			actualCollection=0;
 		}
+	
 		var collection = viewer.scene.primitives.get(actualCollection);
-		if (!collection.dataSource.isActive) {
+		if (!Cesium.defined(collection.dataSource) || !collection.dataSource.isActive) {
 			return;
 		}
 		for	(var i = 0; i < collection.length; i++) {
@@ -341,9 +354,12 @@ function startup(Cesium) {
 		billPerColl = 10000;
 	}
 	
-	function hideBillboards(dataSource){
+	function hideBillboards(dataSource) {
 		for (var i = dataSource.firstIndex; i < dataSource.lastIndex; i++){ 
 			var collection = viewer.scene.primitives.get(i);
+			if (collection instanceof Cesium.Primitive) {
+				collection.show = false;
+			}
 			for (var j = 0; j < collection.length; j++){
 				var item = collection.get(j);
 				item.show = false;
@@ -373,6 +389,11 @@ function startup(Cesium) {
 		} else {
 			dataSource.isActive = true;
 			paused = 0;
+			
+			var collection = viewer.scene.primitives.get(dataSource.firstIndex);
+			if (collection instanceof Cesium.Primitive) {
+				collection.show = true;
+			}
 		}
 	}
 
@@ -404,28 +425,14 @@ function startup(Cesium) {
 	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 	handler.setInputAction(
     function (movement) {
-		//console.log(viewer.animation._viewModel._pauseViewModel.toggled);
         var pickedObject = viewer.scene.pick(movement.position);
-		//viewer.trackedEntity = undefined;
-		var lv = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( 0,0));
-		//console.log(lv + "levy horni");
-		var rd = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( viewer.canvas.clientWidth,viewer.canvas.clientHeight));
-		//console.log(rd + "pravy dolni");
-		var pt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( viewer.canvas.clientWidth,0));
-		//console.log(pt + "pravy horni");
-		var ld = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( 0,viewer.canvas.clientHeight));
-		//console.log(ld + "levy dolni");
-		//var cg = Cesium.Ellipsoid.WGS84.cartesianToCartographic(lv);
-
-		//console.log(" l ",cg.latitude*180/Math.PI,cg.longitude*180/Math.PI);
+		
 		if (Cesium.defined(pickedObject)) {
-			console.log(pickedObject);
-			var entity = new Cesium.Entity({id: pickedObject.id});
-			//console.log(pickedObject.primitive._actualPosition);
-			var pickedPosition = pickedObject.primitive._actualPosition;
-			if(pickedPosition.y < (pt.y+1000) && pickedPosition.z < pt.z && pickedPosition.z > ld.z && pickedPosition.y > lv.y){
-				//console.log("Inside");
+			if (pickedObject.id instanceof Cesium.Entity) {
+				return;
 			}
+			var entity = new Cesium.Entity({id: pickedObject.id});
+		
 			entity.description = {
 				getValue : function() {
 					var description = pickedObject.collection.dataSource.descriptions[pickedObject.primitive._index].allReplace({'&lt;': '<', '&gt;': '>'});
@@ -433,7 +440,6 @@ function startup(Cesium) {
 				}};
 			entity.position = pickedObject.collection.dataSource.positions[pickedObject.primitive._index];
 			viewer.selectedEntity = entity;
-			//console.log(viewer.entities);
 			}
 		},
 		Cesium.ScreenSpaceEventType.LEFT_CLICK);

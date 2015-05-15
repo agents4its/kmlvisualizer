@@ -296,7 +296,9 @@ define([
 		
         var coordNodes = node.coord;
         var timeNodes = node.when;
-		
+		if (!defined(coordNodes)) {
+			return;
+		}
         var coordinates = new Array()
         var times = new Array();
         for (var i = 0; i < timeNodes.length; i++) {
@@ -346,14 +348,107 @@ define([
 		LookAt : processLookAt,
 		Style : processStyle,
 		Placemark : processPlacemark,
+		//Icon : processIcon,
+		LineStyle : processLine,
+		TimeSpan : processTimeSpan,
 	};
 	
+	function processTimeSpan(){
+		var node = nodes.pop();
+		var parent = nodes.pop();
+		parent.timespan = node;
+		nodes.push(parent);
+	}
+	
+	function processIcon() {
+		var node = nodes.pop();
+		var parent = nodes.pop();
+		parent.icon = node;
+		nodes.push(parent);
+	}
+	
+	function processLine() {
+		var node = nodes.pop();
+		var parent = nodes.pop();
+		parent.line = node;
+		nodes.push(parent);
+	}
+	function parseColorString(value){
+		if(value[0] === '#'){
+            value = value.substring(1);
+        }
+
+        var alpha = parseInt(value.substring(0, 2), 16) / 255.0;
+        var blue = parseInt(value.substring(2, 4), 16) / 255.0;
+        var green = parseInt(value.substring(4, 6), 16) / 255.0;
+        var red = parseInt(value.substring(6, 8), 16) / 255.0;
+
+        return new Color(red, green, blue, alpha);	
+	}
+	var polyline = 0;
+	
+	function getOrCreateEntity(node, entityCollection) {
+        var id = polyline;
+		polyline++;
+		//console.log(node);
+        id = defined(id) ? id : createGuid();
+        var entity = entityCollection.getOrCreateEntity(id);
+		//console.log(entity);
+        
+        return entity;
+    }
 	function processPlacemark(dataSource) {
 		dataSource._totalPlacemarks++;
 		var placemark = nodes.pop();
 		dataSource._stylesArray.push(placemark.styleUrl);
 		dataSource._descriptions.push(placemark.description);
 		processTrack(dataSource,placemark);
+		
+		var style = dataSource._styles[placemark.styleUrl];
+		if (defined(style.line)){
+			var entity = getOrCreateEntity(placemark,dataSource.entities);
+			var color = parseColorString(style.line.color);
+			entity.polyline = {
+				positions : Cartesian3.fromDegreesArray(placemark.coordinates.trim().split(/[\s,\n]+/g)),
+				width : style.line.width,
+				material : color
+			}
+			
+			 var background = Color.WHITE;
+        var foreground = Color.BLACK;
+		placemark.description = placemark.description.allReplace({'&lt;': '<', '&gt;': '>'});
+		 var tmp = '<div class="cesium-infoBox-description-lighter" style="';
+        tmp += 'overflow:auto;';
+        tmp += 'word-wrap:break-word;';
+        tmp += 'background-color:' + background.toCssColorString() + ';';
+        tmp += 'color:' + foreground.toCssColorString() + ';';
+        tmp += '">';
+        tmp += placemark.description + '</div>';
+		entity.description = tmp;
+		}
+
+		if (defined(placemark.timespan)){
+			//console.log(placemark.timespan);
+			var begin = JulianDate.fromIso8601(placemark.timespan.begin);
+			var end = JulianDate.fromIso8601(placemark.timespan.end);
+			if (defined(begin) && defined(end)) { 
+				if (JulianDate.lessThan(begin,dataSource._startTime)){
+				dataSource._startTime = begin;
+				}
+				if (JulianDate.greaterThan(end,dataSource._endTime)){
+					dataSource._endTime = end;
+				}
+			
+				var result = new TimeIntervalCollection();
+				result.addInterval(new TimeInterval({
+					start : begin,
+					stop : end
+				}));
+				entity.availability = result;
+			}
+		}
+		
+		
 		if (dataSource._totalPlacemarks % 1000 == 0) {
 			showLoading=dataSource._totalPlacemarks;
 			document.getElementsByClassName('cesium-loadingKML')[0].childNodes[0].childNodes[0].textContent 
@@ -363,9 +458,10 @@ define([
 	function processStyle(dataSource) {
 		var node = nodes.pop();
 		var id ='#'+node.id
-		dataSource._styles[id] = node.href;
+		dataSource._styles[id] = node;
 		if (dataSource._isZipped){
-			dataSource._styles[id] = resolveHref(node.href,dataSource._sourceUri,dataSource._uriResolver);
+			dataSource._styles[id] = node;
+			dataSource._styles[id].href = resolveHref(node.href,dataSource._sourceUri,dataSource._uriResolver);
 		}
 	}
 
@@ -397,7 +493,7 @@ define([
 			dataSource._isEnd = true;
 			return;
 		}
-		if(nodes.length >0 && nodes[nodes.length-1].name == element){
+		if (nodes.length >0 && nodes[nodes.length-1].name == element){
 			var elementProcessor = supportedTypes[element];
 			if (defined(elementProcessor)) {
 				elementProcessor(dataSource);
@@ -480,7 +576,7 @@ define([
 		this._actualElement;
 		this._totalPlacemarks = 0;
 		this._isActive = true;
-		this._firstIndex = 0;
+		this._firstIndex = undefined;
 		this._lastIndex = 0;
 		this._isZipped = false;
 		this._uriResolver;
