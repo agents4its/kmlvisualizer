@@ -358,7 +358,6 @@ function startup(Cesium) {
 		for (var i = dataSource.firstIndex; i < dataSource.lastIndex; i++){ 
 			var collection = viewer.scene.primitives.get(i);
 			if (collection instanceof Cesium.Primitive) {
-				console.log(collection);
 				collection.show = false;
 			}
 			for (var j = 0; j < collection.length; j++){
@@ -426,43 +425,11 @@ function startup(Cesium) {
 	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 	handler.setInputAction(
     function (movement) {
-		//console.log(viewer.animation._viewModel._pauseViewModel.toggled);
-        var pickedObject = viewer.scene.pick(movement.position);
-		//viewer.trackedEntity = undefined;
-		var lv = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( 0,0));
-	//	console.log(lv + "levy horni");
-		var rd = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( viewer.canvas.clientWidth,viewer.canvas.clientHeight));
-	//	console.log(rd + "pravy dolni");
-		var pt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( viewer.canvas.clientWidth,0));
-	//	console.log(pt + "pravy horni");
-		var ld = viewer.camera.pickEllipsoid(new Cesium.Cartesian2( 0,viewer.canvas.clientHeight));
-	//	console.log(ld + "levy dolni");
-		
-		console.log(lv + "levy horni");
-		console.log(pt + "pravy horni");
-		console.log(ld + "levy dolni");
-		console.log(rd + "pravy dolni");
-		//var cg = Cesium.Ellipsoid.WGS84.cartesianToCartographic(lv);
-		
-		
-
-		//console.log(" l ",cg.latitude*180/Math.PI,cg.longitude*180/Math.PI);
 		if (Cesium.defined(pickedObject)) {
-			//console.log(pickedObject);
 			if (pickedObject.id instanceof Cesium.Entity) {
 				return;
 			}
 			var entity = new Cesium.Entity({id: pickedObject.id});
-			//console.log(pickedObject.primitive._actualPosition);
-			var pickedPosition = pickedObject.primitive._actualPosition;
-			console.log(pickedPosition);
-			console.log(pickedPosition.y < (pt.y+1000));
-			console.log(pickedPosition.z < pt.z+200);
-			console.log(pickedPosition.z > ld.z-150);
-			console.log(pickedPosition.y > lv.y-1000);
-			if (pickedPosition.y < (pt.y+1000) && pickedPosition.z < pt.z+200 && pickedPosition.z > ld.z-150 && pickedPosition.y > lv.y-1000) {
-					console.log("uvnitr");
-				}
 			
 			entity.description = {
 				getValue : function() {
