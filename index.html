@@ -425,12 +425,14 @@ function startup(Cesium) {
 	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 	handler.setInputAction(
     function (movement) {
+        var pickedObject = viewer.scene.pick(movement.position);
+		
 		if (Cesium.defined(pickedObject)) {
 			if (pickedObject.id instanceof Cesium.Entity) {
 				return;
 			}
 			var entity = new Cesium.Entity({id: pickedObject.id});
-			
+		
 			entity.description = {
 				getValue : function() {
 					var description = pickedObject.collection.dataSource.descriptions[pickedObject.primitive._index].allReplace({'&lt;': '<', '&gt;': '>'});
