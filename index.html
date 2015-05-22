@@ -59,13 +59,9 @@ function startup(Cesium) {
 	var totalCollection = 0
 	var billPerColl = 10000;
 	var restBill = 0;
-	var fast = [];
 	var translucency = new Cesium.NearFarScalar(1.5e1, 1.0, 4.0e4, 0.0);
-	var startMove = [];
-	var startMoveBack = [];
 	var fastColl = [];
-	var fastIndex = [];
-	var positionTime;
+	var pozition;
 	
 	//initial function, create billboards,collections..
 	function draw(){
@@ -76,11 +72,12 @@ function startup(Cesium) {
 		collectionCount--;
 		var dataSource = viewer.dataSources.get(viewer.dataSources.length-1);
 		setTimeline(dataSource);
-		if (!Cesium.defined(dataSource.firstIndex)){
+		
+		if (!Cesium.defined(dataSource.firstIndex)) {
 			dataSource.firstIndex = viewer.scene.primitives.length;
-			}
+		}
 			
-		if (dataSource.positions.length == 0){
+		if (dataSource.positions.length == 0) {
 			dataSource.firstIndex = viewer.scene.primitives.length-1;
 			dataSource.lastIndex = viewer.scene.primitives.length;
 			if (totalCollection == 0){
@@ -105,6 +102,7 @@ function startup(Cesium) {
 			return;
 		}
 		var billboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
+		
 		if (restBill != 0 && collectionCount == 0) {
 			billPerColl = restBill;
 		}
@@ -112,8 +110,7 @@ function startup(Cesium) {
 		totalCollection++;
 	   //create billboards and billboardCollections
 		for (var i = 0; i < billPerColl; i++) {
-			var style = dataSource.styles[dataSource.stylesArray[count]];
-
+			var style = dataSource.styles[dataSource.stylesArray[count]]; //get Style element
 			count++;
 			bill++;
 			
@@ -130,6 +127,7 @@ function startup(Cesium) {
 		intervalID3 = setInterval(function () {drawFast()}, 1);
 	}
 	
+	//set camera viewing frustum to KML LookAt element (
 	function setCamera(dataSource){
 		if (Cesium.defined(dataSource.lookAt[0])) {
 			viewer.scene.camera.flyTo({
@@ -149,7 +147,7 @@ function startup(Cesium) {
 			});	
 		}
 	}
-	
+	//set starTime, endTime for timeline
 	function setTimeline(dataSource){
 	
 		if (Cesium.JulianDate.compare(viewer.clock.startTime,dataSource.startTime) > 0) {
@@ -185,7 +183,7 @@ function startup(Cesium) {
 		}
 	}
 	
-	//animation of items in the current area of camera view
+	//animation of items in the current area of camera view - better FPS
 	function drawFast() {
 		if (Cesium.JulianDate.equals(prevTimeFast,viewer.clock.currentTime)) {
 			pausedFast++;
@@ -205,7 +203,6 @@ function startup(Cesium) {
 		
 		//get the area of camera view
 		//rd - right down, lt - left top...
-		var rd = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(viewer.canvas.clientWidth,viewer.canvas.clientHeight));
 		var ld = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0,viewer.canvas.clientHeight));
 		var lt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0,0));
 		var pt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(viewer.canvas.clientWidth,0));
@@ -215,9 +212,9 @@ function startup(Cesium) {
 		
 			//get id of billboard in camera view from array
 			var item = fastColl.shift();
-			var coll = viewer.scene.primitives.get(fastIndex[item.id]);
+			var coll = viewer.scene.primitives.get(item.collIndex);
 			if (!item.show) {
-				fast[item.id] = false;
+				item.fast = false;
 				continue;
 			}
 			
@@ -227,27 +224,26 @@ function startup(Cesium) {
 			//if the item is inside the area
 			if (position.y < (pt.y+1000) && position.z < pt.z+200 && position.z > ld.z-150 && position.y > ld.y-1000) {
 				if (!backward) {
-					if (Cesium.defined(item.translucencyByDistance) && Cesium.JulianDate.compare(startMove[item.id],prevTimeFast) > 0) {
+					if (Cesium.defined(item.translucencyByDistance) && Cesium.JulianDate.compare(item.startMove,prevTimeFast) > 0) {
 						fastColl.push(item);
 						continue;
 					}
 				} else {
-					if (Cesium.defined(item.translucencyByDistance) && Cesium.JulianDate.compare(startMoveBack[item.id],prevTimeFast) < 0) {
+					if (Cesium.defined(item.translucencyByDistance) && Cesium.JulianDate.compare(item.startMoveBack,prevTimeFast) < 0) {
 						fastColl.push(item);
 						continue;
 					}
 				}
 				//don't animate if the position is same as before
-				//set height = 0
 				if (!cas._property.isActive) {
-					startMove[item.id] = cas._property._nextTime;
-					startMoveBack[item.id] = cas._property._prevTime;
-					if (Cesium.JulianDate.compare(startMove[item.id],prevTimeFast) < 0) {
-						startMove[item.id] = viewer.clock.stopTime;
+					item.startMove = cas._property._nextTime;
+					item.startMoveBack = cas._property._prevTime;
+					if (Cesium.JulianDate.compare(item.startMove,prevTimeFast) < 0) {
+						item.startMove = viewer.clock.stopTime;
 					}
-					item.translucencyByDistance = translucency;
+					item.translucencyByDistance = translucency;	//set translucency
 					var carto = Cesium.Ellipsoid.WGS84.cartesianToCartographic(position);
-					carto.height = 0;
+					carto.height = 0;	//set height = 0
 					item.position = Cesium.Ellipsoid.WGS84.cartographicToCartesian(carto);
 					fastColl.push(item);
 					continue;
@@ -258,7 +254,7 @@ function startup(Cesium) {
 				fastColl.push(item);
 				continue;
 			}
-			fast[item.id]=false;
+			item.fast = false;
 		}
 	}
 	
@@ -277,7 +273,6 @@ function startup(Cesium) {
 			return;
 		}
 		
-		var rd = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(viewer.canvas.clientWidth,viewer.canvas.clientHeight));
 		var ld = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0,viewer.canvas.clientHeight));
 		var lt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0,0));
 		var rt = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(viewer.canvas.clientWidth,0));
@@ -299,19 +294,19 @@ function startup(Cesium) {
 		}
 		for	(var i = 0; i < collection.length; i++) {
 			var item = collection.get(i);
-			if (fast[item.id]==true) {
+			if (item.fast == true) {
 				continue;
 			}
 			var hasTranslucency = item.translucencyByDistance;
 			var position = item.position;
 			
 			if (!backward) {
-				if (Cesium.defined(hasTranslucency) && Cesium.JulianDate.compare(startMove[item.id],prevTime) > 0) {
+				if (Cesium.defined(hasTranslucency) && Cesium.JulianDate.compare(item.startMove,prevTime) > 0) {
 					item.show = true;
 					continue;
 				}
 			} else {
-				if (Cesium.defined(hasTranslucency) && Cesium.JulianDate.compare(startMoveBack[item.id],prevTime) < 0) {
+				if (Cesium.defined(hasTranslucency) && Cesium.JulianDate.compare(item.startMoveBack,prevTime) < 0) {
 					item.show = true;
 					continue;
 				}
@@ -321,17 +316,17 @@ function startup(Cesium) {
 			//put the billboard in the queue (better FPS)
 			if(Cesium.defined(rt) && Cesium.defined(ld)) {
 				if (position.y < (rt.y+1000) && position.z < rt.z+200 && position.z > ld.z-150 && position.y > lt.y-1000) {
-					fast[item.id] = true;
+					item.fast = true;
 					fastColl.push(item);
-					fastIndex[item.id]=actualCollection;
+					item.collIndex = actualCollection;
 				}
 			}
 			if (!cas._property.isActive){
-				startMove[item.id] = cas._property._nextTime;
-				startMoveBack[item.id] = cas._property._prevTime;
+				item.startMove = cas._property._nextTime;
+				item.startMoveBack = cas._property._prevTime;
 				
-				if (Cesium.JulianDate.compare(startMove[item.id],prevTime) < 0) {
-					startMove[item.id] = viewer.clock.stopTime;
+				if (Cesium.JulianDate.compare(item.startMove,prevTime) < 0) {
+					item.startMove = viewer.clock.stopTime;
 				}
 				
 				item.translucencyByDistance = translucency;
@@ -354,6 +349,7 @@ function startup(Cesium) {
 		billPerColl = 10000;
 	}
 	
+	//hide all Billboards when KML layer is unchecked
 	function hideBillboards(dataSource) {
 		for (var i = dataSource.firstIndex; i < dataSource.lastIndex; i++){ 
 			var collection = viewer.scene.primitives.get(i);
@@ -367,6 +363,7 @@ function startup(Cesium) {
 		}
 	}
 	
+	//set translucency for all billboards when user clicks "Hide inactive" button 
 	function setTranslucencyForAll() {
 		for (var i = 0; i < viewer.scene.primitives.length; i++) {
 			var collection = viewer.scene.primitives.get(i);
@@ -380,6 +377,7 @@ function startup(Cesium) {
 	
 	}
 	
+	//handler for KML layers checkbox
 	function labelHandler(event){
 		var dataSource  = viewer.dataSources.get(event.target.id);
 		if (!event.target.checked) {
@@ -398,7 +396,8 @@ function startup(Cesium) {
 	}
 
 	Sandcastle.finishedLoading();
-		
+	
+	//Set eventListener for checkbox, clear variables then start animation
 	viewer.dataSources.dataSourceAdded.addEventListener(function(movement) {
 		var checkBox = document.getElementById(viewer.dataSources.length-1);
 		checkBox.addEventListener('click',labelHandler);
@@ -426,13 +425,12 @@ function startup(Cesium) {
 	handler.setInputAction(
     function (movement) {
         var pickedObject = viewer.scene.pick(movement.position);
-		
 		if (Cesium.defined(pickedObject)) {
 			if (pickedObject.id instanceof Cesium.Entity) {
 				return;
 			}
 			var entity = new Cesium.Entity({id: pickedObject.id});
-		
+			
 			entity.description = {
 				getValue : function() {
 					var description = pickedObject.collection.dataSource.descriptions[pickedObject.primitive._index].allReplace({'&lt;': '<', '&gt;': '>'});
@@ -458,7 +456,7 @@ function startup(Cesium) {
 		Sandcastle.addToolbarButton('Load KML', function() {
 			document.querySelector("#fileInput").click();
 		});
-		
+		//show/hide button for inactive objects
 		Sandcastle.addToolbarButton('Hide inactive', function() {
 			if (translucency.nearValue == 1) {
 				translucency.nearValue = 0;

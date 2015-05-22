@@ -80,7 +80,11 @@ define([
             throw new DeveloperError('pixelOffsetScaleByDistance.far must be greater than pixelOffsetScaleByDistance.near.');
         }
         //>>includeEnd('debug');
-
+		
+		this._startMove;
+		this._startMoveBack;
+		this._fast;
+		this._collIndex;
         this._show = defaultValue(options.show, true);
         this._position = Cartesian3.clone(defaultValue(options.position, Cartesian3.ZERO));
         this._actualPosition = Cartesian3.clone(this._position); // For columbus view and 2D
@@ -173,6 +177,38 @@ define([
          * @memberof Billboard.prototype
          * @type {Boolean}
          */
+		startMove : {
+			get : function() {
+				return this._startMove;
+			},
+			set : function(value) {
+				this._startMove = value;
+			}
+		},
+		startMoveBack : {
+			get : function() {
+				return this._startMoveBack;
+			},
+			set : function(value) {
+				this._startMoveBack = value;
+			}
+		},
+		fast : {
+			get : function() {
+				return this._fast;
+			},
+			set : function(value) {
+				this._fast = value;
+			}
+		},
+		collIndex : {
+			get : function() {
+				return this._collIndex;
+			},
+			set : function(value) {
+				this._collIndex = value;
+			}
+		},
         show : {
             get : function() {
                 return this._show;
